@@ -120,7 +120,7 @@ router.get('/groups/:gid/shifts/:sid', async (req, res, next) => {
         }
         res.json(response);
     } else {
-        res.sendStatus(400);
+        res.sendStatus(404);
     }
 });
 
@@ -301,6 +301,45 @@ router.delete('/groups/:gid/templates/:tid', async(req, res, next) => {
 //</editor-fold>
 
 //<editor-fold desc="Switches">
+
+/** Create a new switch **/
+router.post('/groups/:gid/switches', async (req, res, next) => {
+    const gid = req.params.gid;
+    const user = 1;
+    const {
+        shift, shift_requested, type, message
+    } = req.body;
+
+    if (
+        shift && type && message
+    ) {
+        const _switch = await db.row `
+        INSERT INTO 
+            switches(
+                shift,
+                shift_requested,
+                proposer,
+                type,
+                message
+            )
+            values(
+                ${shift},
+                ${shift_requested},
+                ${user},
+                ${type},
+                ${message}
+            )
+            RETURNING id;
+    `;
+        res.json({
+            id: _switch.id
+        });
+    } else {
+        res.sendStatus(400);
+    }
+});
+
+/** Get all switches for a group */
 router.get('/groups/:gid/switches', async (req, res, next) => {
    const gid = req.params.gid;
    const switches = await db.rows`
@@ -317,6 +356,60 @@ router.get('/groups/:gid/switches', async (req, res, next) => {
        res.sendStatus(400);
    }
 });
+
+/** Get data for a specific switch */
+router.get('/groups/:gid/switches/:sid', async (req, res, next) => {
+    const gid = req.params.gid;
+    const sid = req.params.sid;
+
+    /** Get all relevant props from switches.
+     * Also, array agg any responses to this switch by id.
+     * We use an array_remove to remove any null elements from the array.
+     * */
+    //<editor-fold desc="query">
+    const _switch = await db.row `
+        SELECT 
+            s.id,
+            s.version,
+            s.shift,
+            s.shift_requested,
+            s.type,
+            s.proposer,
+            s.acceptor,
+            s.message,
+            s.cancelled,
+            array_remove(array_agg(r.id), null) as responses
+        FROM switches s
+            LEFT JOIN switchresponses r on r.switch = s.id
+        WHERE s.id = ${sid}
+        GROUP BY
+            s.id,
+            s.version,
+            s.shift,
+            s.shift_requested,
+            s.type,
+            s.proposer,
+            s.acceptor,
+            s.message,
+            s.cancelled
+    `;
+    //</editor-fold>
+    if (_switch) {
+        res.json({
+            id: sid,
+            version: _switch.version,
+            data: _switch
+        });
+    } else {
+        res.sendStatus(404);
+    }
+});
+
+/** TODO: Cancel a switch */
+router.post('/groups/:gid/switches/:sid/cancel', (req, res, next) => {
+
+});
+
 //</editor-fold>
 
 
