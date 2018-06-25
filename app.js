@@ -30,7 +30,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 /**
  * Routes
  */
-app.use('/api', auth.checkIsMember, apiRouter);
+app.use('/api', apiRouter);
 
 
 // catch 404 and forward to error handler
